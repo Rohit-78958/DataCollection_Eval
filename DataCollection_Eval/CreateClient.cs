@@ -134,7 +134,10 @@ namespace DataCollection_Eval
                                     foreach (string address in plcAddresses)
                                     {
                                         // Create and add the dimension detail
-                                        gaugeInformation.DimensionDetails.Add(CreateDimensionDetail(ref plc, gaugeInformation.GaugeID, dimensionCount, dbNumber, address));
+                                        var dimensionDetail = CreateDimensionDetail(ref plc, gaugeInformation.GaugeID, dimensionCount, dbNumber, address);
+                                        if(dimensionDetail != null) 
+                                            gaugeInformation.DimensionDetails.Add(dimensionDetail);
+                                        
                                         dimensionCount--;
                                     }
                                 }
@@ -186,7 +189,10 @@ namespace DataCollection_Eval
                                         foreach (short location in macroLocations)
                                         {
                                             // Create and add the dimension detail.
-                                            gaugeInformation.DimensionDetails.Add(CreateFocasDimensionDetail(gaugeInformation.GaugeID, dimensionCount, focasLibHandle, location));
+                                            var focasDimensionDetail = CreateFocasDimensionDetail(gaugeInformation.GaugeID, dimensionCount, focasLibHandle, location);
+                                            if (focasDimensionDetail != null)
+                                                gaugeInformation.DimensionDetails.Add(focasDimensionDetail);
+                                            
                                             dimensionCount--;
                                         }
                                     }
