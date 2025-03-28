@@ -39,12 +39,21 @@ namespace DataCollection_Eval
                 Directory.CreateDirectory(appPath + "\\Logs\\");
             }
             ServiceStop.stop_service = 0;
+
+            #region Populating GauageInformationDB from jsonFile
+            string jsonFilePath = "D:\\Services\\DataCollection_Eval\\DataCollection_Eval\\GaugeInfo.json";
+            DatabaseAccess.PopulateGaugeInformationFromJson(jsonFilePath);
+            #endregion
+
+            #region Getting all machine Details
             List<MachineInfoDTO> machines = DatabaseAccess.GetTPMTrakMachine();
             if (machines.Count == 0)
             {
                 Logger.WriteDebugLog("No machine is enabled for TPM-Trak. modify the machine setting and restart the service.");
                 return;
             }
+            #endregion
+
             foreach (MachineInfoDTO machine in machines)
             {
                 //MachineInfoDTO machine = machines[0]; //g: test

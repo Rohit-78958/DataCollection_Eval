@@ -1,0 +1,12 @@
+[
+  {
+    "GaugeID": "G1",
+    "MachineID": "M101",
+    "DimensionsCount": 4
+  },
+  {
+    "GaugeID": "G2",
+    "MachineID": "M102",
+    "DimensionsCount": 3
+  }
+]

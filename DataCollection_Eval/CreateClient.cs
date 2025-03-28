@@ -20,7 +20,7 @@ namespace DataCollection_Eval
         private readonly string _protocol;
         private readonly MachineInfoDTO machineDTO;
         private readonly object _lockerReleaseMemory = new object();
-        private DateTime _CDT = DateTime.Now.Date;
+        private DateTime _nextCleanUp = DateTime.Now.Date;
         public CreateClient(MachineInfoDTO machine)
         {
             this.machineDTO = machine;
@@ -33,7 +33,7 @@ namespace DataCollection_Eval
         public void GetClient()
         {
             TcpClient tcpClient = null;
-            _CDT = DateTime.Now.Date.AddDays(1);
+            _nextCleanUp = DateTime.Now.Date.AddDays(1);
 
             if (Utility.CheckPingStatus(_ipAddress))
             {
@@ -71,13 +71,13 @@ namespace DataCollection_Eval
                         #endregion StopService
 
                         #region Handle_files
-                        if (_CDT < DateTime.Now)
+                        if (_nextCleanUp < DateTime.Now)
                         {
                             if (Monitor.TryEnter(_lockerReleaseMemory, 100))
                             {
                                 try
                                 {
-                                    if (_CDT < DateTime.Now)
+                                    if (_nextCleanUp < DateTime.Now)
                                     {
                                         Logger.WriteDebugLog("clean up process started.");
                                         CleanUpProcess.DeleteFiles("Logs");
@@ -93,7 +93,7 @@ namespace DataCollection_Eval
                                 }
                                 finally
                                 {
-                                    _CDT = _CDT.Date.AddDays(1);
+                                    _nextCleanUp = _nextCleanUp.Date.AddDays(1);
                                     Monitor.Exit(_lockerReleaseMemory);
                                 }
                             }
@@ -106,6 +106,7 @@ namespace DataCollection_Eval
                         Thread.Sleep(10000);
                     }
 
+                    #region Profinet PLC
                     if (_protocol.Equals("profinet", StringComparison.OrdinalIgnoreCase))
                     {
                         plc = new Plc(CpuType.S71200, machineDTO.IpAddress, 0, 1);
@@ -114,47 +115,33 @@ namespace DataCollection_Eval
                         try
                         {
                             string dbNumber = ConfigurationManager.AppSettings["DBNumber"]?.ToString();
-                            string doubleAddress1 = ConfigurationManager.AppSettings["DoubleAddress1"]?.ToString();
-                            string doubleAddress2 = ConfigurationManager.AppSettings["DoubleAddress2"]?.ToString();
-                            string doubleAddress3 = ConfigurationManager.AppSettings["DoubleAddress3"]?.ToString();
+                            string plcDoubleAddress1 = ConfigurationManager.AppSettings["PLCDoubleAddress1"]?.ToString();
+                            string plcDoubleAddress2 = ConfigurationManager.AppSettings["PLCDoubleAddress2"]?.ToString();
+                            string plcDoubleAddress3 = ConfigurationManager.AppSettings["PLCDoubleAddress3"]?.ToString();
 
-                            for (int i = 0; i < machineDTO.Gauges.Count; i++)
+                            // Refactored loop for updating each gauge's dimensions.
+                            for (int gauge = 0; gauge < machineDTO.Gauges.Count; gauge++)
                             {
-                                GaugeInformation gaugeInformation = machineDTO.Gauges[i];
-
+                                GaugeInformation gaugeInformation = machineDTO.Gauges[gauge];
+                                // Clear previous dimension details
                                 gaugeInformation.DimensionDetails.Clear();
                                 dimensionCount = gaugeInformation.DimensionsCount;
 
                                 if (plc.IsConnected && dimensionCount > 0)
                                 {
+                                    // Array of PLC addresses to read from
+                                    string[] plcAddresses = { plcDoubleAddress1, plcDoubleAddress2, plcDoubleAddress3 };
 
-                                    double readValue = ((uint)plc?.Read($"DB{dbNumber}.DBD{doubleAddress1}")).ConvertToDouble();
-                                    DimensionDetails dimension = new DimensionDetails()
+                                    foreach (string address in plcAddresses)
                                     {
-                                        DimensionID = $"{_machineId}_{gaugeInformation.GaugeID}_D {dimensionCount--}",
-                                        MeasuredValue = readValue
-                                    };
-                                    gaugeInformation.DimensionDetails.Add(dimension);
-
-                                    double readValue2 = ((uint)plc?.Read($"DB{dbNumber}.DBD{doubleAddress2}")).ConvertToDouble();
-                                    DimensionDetails dimension2 = new DimensionDetails()
-                                    {
-                                        DimensionID = $"{_machineId}_{gaugeInformation.GaugeID}_D {dimensionCount--}",
-                                        MeasuredValue = readValue2
-                                    };
-                                    gaugeInformation.DimensionDetails.Add(dimension2);
-
-
-                                    double readValue3 = ((uint)plc?.Read($"DB{dbNumber}.DBD{doubleAddress3}")).ConvertToDouble();
-                                    DimensionDetails dimension3 = new DimensionDetails()
-                                    {
-                                        DimensionID = $"{_machineId}_{gaugeInformation.GaugeID}_D {dimensionCount--}",
-                                        MeasuredValue = readValue3
-                                    };
-                                    gaugeInformation.DimensionDetails.Add(dimension3);
+                                        // Create and add the dimension detail
+                                        gaugeInformation.DimensionDetails.Add(CreateDimensionDetail(ref plc, gaugeInformation.GaugeID, dimensionCount, dbNumber, address));
+                                        dimensionCount--;
+                                    }
                                 }
 
-                                machineDTO.Gauges[i] = gaugeInformation;
+                                // Update the gauge information in the collection (if necessary)
+                                machineDTO.Gauges[gauge] = gaugeInformation;
                             }
 
                             DatabaseAccess.InsertGaugeInformation(machineDTO);
@@ -169,64 +156,44 @@ namespace DataCollection_Eval
                             plc?.Close();
                         }
                     }
+                    #endregion
 
-
+                    #region FOCAS: Fanuc
                     else if (_protocol.Equals("focas", StringComparison.OrdinalIgnoreCase))
                     {
-                        short doubleMacroLocation1 = short.Parse(ConfigurationManager.AppSettings["DoubleMacroLocation1"]);
-                        short doubleMacroLocation2 = short.Parse(ConfigurationManager.AppSettings["DoubleMacroLocation2"]);
-                        short doubleMacroLocation3 = short.Parse(ConfigurationManager.AppSettings["DoubleMacroLocation3"]);
-                        short doubleMacroLocation4 = short.Parse(ConfigurationManager.AppSettings["DoubleMacroLocation4"]);
+                        short fanucDoubleMacroLocation1 = short.Parse(ConfigurationManager.AppSettings["fanucDoubleMacroLocation1"]);
+                        short fanucDoubleMacroLocation2 = short.Parse(ConfigurationManager.AppSettings["fanucDoubleMacroLocation2"]);
+                        short fanucDoubleMacroLocation3 = short.Parse(ConfigurationManager.AppSettings["fanucDoubleMacroLocation3"]);
+                        short fanucDoubleMacroLocation4 = short.Parse(ConfigurationManager.AppSettings["fanucDoubleMacroLocation4"]);
 
                         try
                         {
                             int ret = FocasLibrary.FocasLib.cnc_allclibhndl3(_ipAddress, (ushort)_portNo, 10, out focasLibHandle);
                             if (ret == 0)
                             {
-                                for (int i = 0; i < machineDTO.Gauges.Count; i++)
+                                for (int gauge = 0; gauge < machineDTO.Gauges.Count; gauge++)
                                 {
-                                    GaugeInformation gaugeInformation = machineDTO.Gauges[i];
+                                    GaugeInformation gaugeInformation = machineDTO.Gauges[gauge];
 
+                                    // Clear previous dimension details.
                                     gaugeInformation.DimensionDetails.Clear();
                                     dimensionCount = gaugeInformation.DimensionsCount;
 
                                     if (dimensionCount > 0)
                                     {
+                                        // Array of Focas macro locations.
+                                        short[] macroLocations = { fanucDoubleMacroLocation1, fanucDoubleMacroLocation2, fanucDoubleMacroLocation3, fanucDoubleMacroLocation4 };
 
-                                        double doubleMacroData = FocasLibrary.FocasData.ReadMacroDouble(focasLibHandle, doubleMacroLocation1);
-                                        DimensionDetails dimension = new DimensionDetails()
+                                        foreach (short location in macroLocations)
                                         {
-                                            DimensionID = $"{_machineId}_{gaugeInformation.GaugeID}_D{dimensionCount--}",
-                                            MeasuredValue = doubleMacroData
-                                        };
-                                        gaugeInformation.DimensionDetails.Add(dimension);
-
-                                        double doubleMacroData1 = FocasLibrary.FocasData.ReadMacroDouble(focasLibHandle, doubleMacroLocation2);
-                                        DimensionDetails dimension1 = new DimensionDetails()
-                                        {
-                                            DimensionID = $"{_machineId}_{gaugeInformation.GaugeID}_D{dimensionCount--}",
-                                            MeasuredValue = doubleMacroData1
-                                        };
-                                        gaugeInformation.DimensionDetails.Add(dimension1);
-
-                                        double doubleMacroData2 = FocasLibrary.FocasData.ReadMacroDouble(focasLibHandle, doubleMacroLocation3);
-                                        DimensionDetails dimension2 = new DimensionDetails()
-                                        {
-                                            DimensionID = $"{_machineId}_{gaugeInformation.GaugeID}_D{dimensionCount--}",
-                                            MeasuredValue = doubleMacroData2
-                                        };
-                                        gaugeInformation.DimensionDetails.Add(dimension2);
-
-                                        double doubleMacroData3 = FocasLibrary.FocasData.ReadMacroDouble(focasLibHandle, doubleMacroLocation4);
-                                        DimensionDetails dimension3 = new DimensionDetails()
-                                        {
-                                            DimensionID = $"{_machineId}_{gaugeInformation.GaugeID}_D{dimensionCount--}",
-                                            MeasuredValue = doubleMacroData3
-                                        };
-                                        gaugeInformation.DimensionDetails.Add(dimension3);
+                                            // Create and add the dimension detail.
+                                            gaugeInformation.DimensionDetails.Add(CreateFocasDimensionDetail(gaugeInformation.GaugeID, dimensionCount, focasLibHandle, location));
+                                            dimensionCount--;
+                                        }
                                     }
 
-                                    machineDTO.Gauges[i] = gaugeInformation;
+                                    // Update the gauge information in the collection (if needed).
+                                    machineDTO.Gauges[gauge] = gaugeInformation;
                                 }
 
                                 DatabaseAccess.InsertGaugeInformation(machineDTO);
@@ -240,6 +207,7 @@ namespace DataCollection_Eval
                             FocasLibrary.FocasLib.cnc_freelibhndl(focasLibHandle);
                         }
                     }
+                    #endregion
 
                     Thread.Sleep(1000);
                 }
@@ -248,6 +216,28 @@ namespace DataCollection_Eval
             {
                 Logger.WriteErrorLog($"{_ipAddress} for {_machineId} is not reachable");
             }
+        }
+
+        // Helper method to read a value using Profinet PLC and create a DimensionDetails instance.
+        private DimensionDetails CreateDimensionDetail(ref Plc plc, string gaugeId, int dimensionCount, string dbNumber, string plcAddress)
+        {
+            double readValue = ((uint)plc?.Read($"DB{dbNumber}.DBD{plcAddress}")).ConvertToDouble();
+            return new DimensionDetails
+            {
+                DimensionID = $"{_machineId}_{gaugeId}_D{dimensionCount}",
+                MeasuredValue = readValue
+            };
+        }
+
+        // Helper method to read a value using Focas and create a DimensionDetails instance.
+        private DimensionDetails CreateFocasDimensionDetail(string gaugeId, int dimensionCount, ushort focasLibHandle, short macroLocation)
+        {
+            double readValue = FocasLibrary.FocasData.ReadMacroDouble(focasLibHandle, macroLocation);
+            return new DimensionDetails
+            {
+                DimensionID = $"{_machineId}_{gaugeId}_D{dimensionCount}",
+                MeasuredValue = readValue
+            };
         }
     }
 }

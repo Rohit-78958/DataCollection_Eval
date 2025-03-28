@@ -13,12 +13,63 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.Remoting.Metadata.W3cXsd2001;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace DataCollection_Eval
 {
     public static class DatabaseAccess
     {
         public static string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+        public static void PopulateGaugeInformationFromJson(string jsonFilePath)
+        {
+            try
+            {
+                // Read the JSON file
+                string jsonData = File.ReadAllText(jsonFilePath);
+
+                // Deserialize JSON into a list
+                List<GaugeInformation> gaugeList = JsonSerializer.Deserialize<List<GaugeInformation>>(jsonData);
+
+                // Create a DataTable
+                DataTable gaugeTable = new DataTable();
+                gaugeTable.Columns.Add("GaugeID", typeof(string));
+                gaugeTable.Columns.Add("MachineID", typeof(string));
+                gaugeTable.Columns.Add("DimensionsCount", typeof(int));
+
+                // Populate the DataTable
+                foreach (var gauge in gaugeList)
+                {
+                    gaugeTable.Rows.Add(gauge.GaugeID, gauge.MachineID, gauge.DimensionsCount);
+                }
+
+                // Insert data using SqlBulkCopy
+                using (SqlConnection connection = ConnectionManager.GetConnection())
+                {
+                    using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
+                    {
+                        bulkCopy.DestinationTableName = "GaugeInformation";
+
+                        // Map columns
+                        bulkCopy.ColumnMappings.Add("GaugeID", "GaugeID");
+                        bulkCopy.ColumnMappings.Add("MachineID", "MachineID");
+                        bulkCopy.ColumnMappings.Add("DimensionsCount", "DimensionsCount");
+
+                        // Write to the database
+                        bulkCopy.WriteToServer(gaugeTable);
+                    }
+                }
+                Logger.WriteDebugLog("Data successfully inserted into GaugeInformation using SqlBulkCopy.");
+            }
+            catch (FileNotFoundException ex)
+            {
+                Logger.WriteErrorLog($"Error: JSON file not found - {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteErrorLog($"Unexpected error: {ex.Message}");
+            }
+        }
 
         public static List<MachineInfoDTO> GetTPMTrakMachine()
         {
@@ -62,7 +113,7 @@ namespace DataCollection_Eval
                                 MachineId = currentMachineId,
                                 IpAddress = ip,
                                 PortNo = Int32.TryParse(reader["IPPortNo"].ToString().Trim(), out int port) ? port : 0,
-                                DataCollectionProtocol = Utility.GetProtocol(reader["DAPEnabled"].ToString()),
+                                DataCollectionProtocol = Utility.GetProtocol(reader["DAPEnabled"].ToString())??"NA",
                                 Gauges = new List<GaugeInformation>() // Initialize the list
                             };
                             machines.Add(currentMachine);
@@ -70,7 +121,11 @@ namespace DataCollection_Eval
                         }
 
                         string dataSource = currentMachine.DataCollectionProtocol;
-                        if (dataSource.Equals("profinet", StringComparison.OrdinalIgnoreCase))
+                        if (dataSource.Equals("NA", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new Exception("No proper protocol specified!");
+                        }
+                        else if (dataSource.Equals("profinet", StringComparison.OrdinalIgnoreCase))
                         {
                             dataSource = "PLC";
                         }
@@ -108,74 +163,136 @@ namespace DataCollection_Eval
             return machines;
         }
 
+        //public static void InsertGaugeInformation1(MachineInfoDTO machine)
+        //{
+        //    using (SqlConnection connection = ConnectionManager.GetConnection())
+        //    {
+        //        using (SqlTransaction transaction = connection.BeginTransaction())
+        //        {
+        //            try
+        //            {
+        //                using (SqlCommand command = new SqlCommand("InsertGaugeTransaction", connection, transaction))
+        //                {
+        //                    command.CommandType = CommandType.StoredProcedure;
+
+        //                    // Add parameters once and reuse them.
+        //                    command.Parameters.Add("@MachineID", SqlDbType.VarChar);
+        //                    command.Parameters.Add("@GaugeID", SqlDbType.VarChar);
+        //                    command.Parameters.Add("@DimensionID", SqlDbType.VarChar);
+        //                    command.Parameters.Add("@MeasuredValue", SqlDbType.Float);
+        //                    command.Parameters.Add("@DataSource", SqlDbType.VarChar);
+
+        //                    int totalInsertedRows = 0;
+
+        //                    foreach (var gauge in machine.Gauges)
+        //                    {
+        //                        if (gauge.DimensionDetails == null || gauge.DimensionDetails.Count == 0)
+        //                        {
+        //                            Logger.WriteDebugLog($"No DimensionDetails provided for MachineID {gauge.MachineID}");
+        //                            continue;
+        //                        }
+
+        //                        int gaugeInsertedRows = 0;
+        //                        foreach (var dimension in gauge.DimensionDetails)
+        //                        {
+        //                            // Update parameter values
+        //                            command.Parameters["@MachineID"].Value = gauge.MachineID;
+        //                            command.Parameters["@GaugeID"].Value = gauge.GaugeID;
+        //                            command.Parameters["@DimensionID"].Value = dimension.DimensionID;
+        //                            command.Parameters["@MeasuredValue"].Value = Convert.ToDouble(dimension.MeasuredValue);
+        //                            command.Parameters["@DataSource"].Value = gauge.DataSource;
+
+        //                            // Execute the command.
+        //                            int rowsAffected = command.ExecuteNonQuery();
+        //                            if (rowsAffected > 0)
+        //                            {
+        //                                gaugeInsertedRows += rowsAffected;
+        //                                Logger.WriteDebugLog($"Gauge Transaction Saved: MachineID {gauge.MachineID}, GaugeID {gauge.GaugeID}, DimensionID {dimension.DimensionID}");
+        //                            }
+        //                            else
+        //                            {
+        //                                Logger.WriteDebugLog($"Gauge Transaction Save Failed: MachineID {gauge.MachineID}, GaugeID {gauge.GaugeID}, DimensionID {dimension.DimensionID}");
+        //                            }
+        //                        }
+
+        //                        if (gaugeInsertedRows > 0)
+        //                        {
+        //                            Logger.WriteDebugLog($"Successfully inserted {gaugeInsertedRows} gauge transactions for MachineID {gauge.MachineID}");
+        //                        }
+        //                        else
+        //                        {
+        //                            Logger.WriteDebugLog($"No gauge transactions inserted for MachineID {gauge.MachineID}");
+        //                        }
+        //                        totalInsertedRows += gaugeInsertedRows;
+        //                    }
+
+        //                    transaction.Commit();
+        //                    Logger.WriteDebugLog($"Total gauge transactions inserted: {totalInsertedRows}");
+        //                }
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                transaction.Rollback();
+        //                Logger.WriteErrorLog($"Error inserting gauge transactions: {ex.Message}");
+        //            }
+        //        }
+        //    }
+        //}
+
+
+
         public static void InsertGaugeInformation(MachineInfoDTO machine)
         {
-            SqlConnection connection = ConnectionManager.GetConnection();
-            string query = "InsertGaugeTransaction"; 
-            try
+            DataTable gaugeTransactions = new DataTable();
+            gaugeTransactions.Columns.Add("MachineID", typeof(string));
+            gaugeTransactions.Columns.Add("GaugeID", typeof(string));
+            gaugeTransactions.Columns.Add("DimensionID", typeof(string));
+            gaugeTransactions.Columns.Add("MeasuredValue", typeof(double));
+            gaugeTransactions.Columns.Add("DataSource", typeof(string));
+
+            // Populate the DataTable with rows.
+            foreach (var gauge in machine.Gauges)
             {
-
-                for (int gaugeCount = 0; gaugeCount < machine.Gauges.Count; gaugeCount++)
+                if (gauge.DimensionDetails == null || gauge.DimensionDetails.Count == 0)
                 {
-                    GaugeInformation gaugeInformation = machine.Gauges[gaugeCount];
-                    // Ensure DimensionDetails list is not null and limit to dimensionCount
-                    if (gaugeInformation.DimensionDetails != null && gaugeInformation.DimensionDetails.Count > 0)
+                    Logger.WriteDebugLog($"No DimensionDetails provided for MachineID {gauge.MachineID}");
+                    continue;
+                }
+                foreach (var dimension in gauge.DimensionDetails)
+                {
+                    gaugeTransactions.Rows.Add(
+                        gauge.MachineID,
+                        gauge.GaugeID,
+                        dimension.DimensionID,
+                        dimension.MeasuredValue,
+                        gauge.DataSource);
+                }
+            }
+
+            using (SqlConnection connection = ConnectionManager.GetConnection())
+            {
+                using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
+                {
+                    bulkCopy.DestinationTableName = "GaugeTransactionData";
+
+                    // Explicit column mappings
+                    bulkCopy.ColumnMappings.Add("MachineID", "MachineID");
+                    bulkCopy.ColumnMappings.Add("GaugeID", "GaugeID");
+                    bulkCopy.ColumnMappings.Add("DimensionID", "DimensionID");
+                    bulkCopy.ColumnMappings.Add("MeasuredValue", "MeasuredValue");
+                    bulkCopy.ColumnMappings.Add("DataSource", "DataSource");
+
+                    try
                     {
-                        int insertedRows = 0;
-                        for (int i = 0; i < gaugeInformation.DimensionDetails.Count; i++)
-                        {
-                            DimensionDetails dimension = gaugeInformation.DimensionDetails[i];
-
-                            using (SqlCommand command = new SqlCommand(query, connection))
-                            {
-                                command.CommandType = CommandType.StoredProcedure;
-
-                                // Add parameters for the stored procedure
-                                command.Parameters.AddWithValue("@MachineID", gaugeInformation.MachineID);
-                                command.Parameters.AddWithValue("@GaugeID", gaugeInformation.GaugeID);
-                                command.Parameters.AddWithValue("@DimensionID", dimension.DimensionID); // Use DimensionID from list
-                                command.Parameters.AddWithValue("@MeasuredValue", Convert.ToDouble(dimension.MeasuredValue)); // Convert string to double
-                                command.Parameters.AddWithValue("@DataSource", gaugeInformation.DataSource);
-
-                                // Execute the command and track inserted rows
-                                int rowsAffected = command.ExecuteNonQuery();
-                                if (rowsAffected > 0)
-                                {
-                                    insertedRows += rowsAffected;
-                                    Logger.WriteDebugLog($"Gauge Transaction Saved: MachineID {gaugeInformation.MachineID}, GaugeID {gaugeInformation.GaugeID}, DimensionID {dimension.DimensionID}");
-                                }
-                                else
-                                {
-                                    Logger.WriteDebugLog($"Gauge Transaction Save Failed: MachineID {gaugeInformation.MachineID}, GaugeID {gaugeInformation.GaugeID}, DimensionID {dimension.DimensionID}");
-                                }
-                            }
-                        }
-
-                        // Log overall success or failure
-                        if (insertedRows > 0)
-                        {
-                            Logger.WriteDebugLog($"Successfully inserted {insertedRows} gauge transactions for MachineID {gaugeInformation.MachineID}");
-                        }
-                        else
-                        {
-                            Logger.WriteDebugLog($"No gauge transactions inserted for MachineID {gaugeInformation.MachineID}");
-                        }
+                        bulkCopy.WriteToServer(gaugeTransactions);
+                        Logger.WriteDebugLog($"Successfully bulk inserted {gaugeTransactions.Rows.Count} gauge transactions.");
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        Logger.WriteDebugLog($"No DimensionDetails provided for MachineID {gaugeInformation.MachineID}");
+                        Logger.WriteErrorLog($"Error during bulk insert: {ex.Message}");
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                Logger.WriteErrorLog($"Error inserting gauge transactions for MachineID {machine.MachineId}: {ex.Message}");
-            }
-            finally
-            {
-                connection?.Close();
-            }
         }
-
     }
 }

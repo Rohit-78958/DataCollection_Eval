@@ -9,9 +9,8 @@ namespace DataCollection_Eval
 {
     public static class Logger
     {
-        static string appPath;
-        static string enableLog;
-        static string enableExtraLog;
+        static readonly string appPath;
+        static readonly string enableLog;
         static Logger()
         {
             appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);

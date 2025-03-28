@@ -57,7 +57,7 @@ namespace DataCollection_Eval
             }
             else
             {
-                return "Fanuc";
+                return null;
             }
         }
 

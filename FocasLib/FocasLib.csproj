@@ -46,7 +46,6 @@
     <Compile Include="Logger.cs" />
     <Compile Include="Macro.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utility.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Fwlib32.dll">
