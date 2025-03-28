@@ -18,12 +18,12 @@ namespace DataCollection_Eval
         private readonly int _portNo;
         private readonly string _machineId;
         private readonly string _protocol;
-        private readonly MachineInfoDTO machineDTO;
+        private readonly MachineInfoDTO _machineDTO;
         private readonly object _lockerReleaseMemory = new object();
         private DateTime _nextCleanUp = DateTime.Now.Date;
         public CreateClient(MachineInfoDTO machine)
         {
-            this.machineDTO = machine;
+            this._machineDTO = machine;
             this._ipAddress = machine.IpAddress;
             this._portNo = machine.PortNo;
             this._machineId = machine.MachineId;
@@ -108,7 +108,7 @@ namespace DataCollection_Eval
                     #region Profinet PLC
                     if (_protocol.Equals("profinet", StringComparison.OrdinalIgnoreCase))
                     {
-                        plc = new Plc(CpuType.S71200, machineDTO.IpAddress, 0, 1);
+                        plc = new Plc(CpuType.S71200, _machineDTO.IpAddress, 0, 1);
                         plc.Open();
 
                         try
@@ -119,9 +119,9 @@ namespace DataCollection_Eval
                             string plcDoubleAddress3 = ConfigurationManager.AppSettings["PLCDoubleAddress3"]?.ToString();
 
                             // Refactored loop for updating each gauge's dimensions.
-                            for (int gauge = 0; gauge < machineDTO.Gauges.Count; gauge++)
+                            for (int gauge = 0; gauge < _machineDTO.Gauges.Count; gauge++)
                             {
-                                GaugeInformation gaugeInformation = machineDTO.Gauges[gauge];
+                                GaugeInformation gaugeInformation = _machineDTO.Gauges[gauge];
                                 // Clear previous dimension details
                                 gaugeInformation.DimensionDetails.Clear();
                                 dimensionCount = gaugeInformation.DimensionsCount;
@@ -140,10 +140,10 @@ namespace DataCollection_Eval
                                 }
 
                                 // Update the gauge information in the collection (if necessary)
-                                machineDTO.Gauges[gauge] = gaugeInformation;
+                                _machineDTO.Gauges[gauge] = gaugeInformation;
                             }
 
-                            DatabaseAccess.InsertGaugeInformation(machineDTO);
+                            DatabaseAccess.InsertGaugeInformation(_machineDTO);
                         }
                         catch (Exception ex)
                         {
@@ -170,9 +170,9 @@ namespace DataCollection_Eval
                             int ret = FocasLibrary.FocasLib.cnc_allclibhndl3(_ipAddress, (ushort)_portNo, 10, out focasLibHandle);
                             if (ret == 0)
                             {
-                                for (int gauge = 0; gauge < machineDTO.Gauges.Count; gauge++)
+                                for (int gauge = 0; gauge < _machineDTO.Gauges.Count; gauge++)
                                 {
-                                    GaugeInformation gaugeInformation = machineDTO.Gauges[gauge];
+                                    GaugeInformation gaugeInformation = _machineDTO.Gauges[gauge];
 
                                     // Clear previous dimension details.
                                     gaugeInformation.DimensionDetails.Clear();
@@ -192,10 +192,10 @@ namespace DataCollection_Eval
                                     }
 
                                     // Update the gauge information in the collection (if needed).
-                                    machineDTO.Gauges[gauge] = gaugeInformation;
+                                    _machineDTO.Gauges[gauge] = gaugeInformation;
                                 }
 
-                                DatabaseAccess.InsertGaugeInformation(machineDTO);
+                                DatabaseAccess.InsertGaugeInformation(_machineDTO);
 
                             }
                         }

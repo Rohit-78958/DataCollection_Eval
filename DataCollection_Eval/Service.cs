@@ -16,10 +16,10 @@ namespace DataCollection_Eval
 {
     public partial class Service: ServiceBase
     {
-        private static readonly List<Thread> threads = new List<Thread>();
-        private static readonly List<CreateClient> clients = new List<CreateClient>();
-        private static readonly string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        private static readonly string jsonFilePath = Path.Combine(appPath + "\\GaugeInfo.json");
+        private static readonly List<Thread> _threads = new List<Thread>();
+        private static readonly List<CreateClient> _clients = new List<CreateClient>();
+        private static readonly string _appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        private static readonly string _jsonFilePath = Path.Combine(_appPath + "\\GaugeInfo.json");
         public Service()
         {
             InitializeComponent();
@@ -37,14 +37,14 @@ namespace DataCollection_Eval
 
             try
             {
-                if (!Directory.Exists(appPath + "\\Logs\\"))
+                if (!Directory.Exists(_appPath + "\\Logs\\"))
                 {
-                    Directory.CreateDirectory(appPath + "\\Logs\\");
+                    Directory.CreateDirectory(_appPath + "\\Logs\\");
                 }
                 ServiceStop.stop_service = 0;
 
 
-                DatabaseAccess.PopulateGaugeInformationFromJson(jsonFilePath);
+                DatabaseAccess.PopulateGaugeInformationFromJson(_jsonFilePath);
 
                 List<MachineInfoDTO> machines = DatabaseAccess.GetTPMTrakMachine();
                 if (machines.Count == 0)
@@ -56,7 +56,7 @@ namespace DataCollection_Eval
                 foreach (MachineInfoDTO machine in machines)
                 {
                     CreateClient client = new CreateClient(machine);
-                    clients.Add(client);
+                    _clients.Add(client);
 
                     ThreadStart job = new ThreadStart(client.GetClient);
                     Thread thread = new Thread(job)
@@ -65,7 +65,7 @@ namespace DataCollection_Eval
                         CurrentCulture = new System.Globalization.CultureInfo("en-US")
                     };
                     thread.Start();
-                    threads.Add(thread);
+                    _threads.Add(thread);
                     Logger.WriteDebugLog($"Machine: {machine.MachineId} started for DataCollection with IP: {machine.IpAddress}, Port: {machine.PortNo}, Protocol: {machine.DataCollectionProtocol}");
                 }
             }
@@ -112,14 +112,14 @@ namespace DataCollection_Eval
             try
             {
                 Logger.WriteDebugLog("Service Stop request has come!!! ");
-                Logger.WriteDebugLog("Thread count is: " + threads.Count.ToString());
-                foreach (Thread thread in threads)
+                Logger.WriteDebugLog("Thread count is: " + _threads.Count.ToString());
+                foreach (Thread thread in _threads)
                 {
                     Logger.WriteDebugLog("Stopping the machine - " + thread.Name);
                     RequestAdditionalTime(2000);
                     thread.Join();
                 }
-                threads.Clear();
+                _threads.Clear();
             }
             catch (Exception ex)
             {
@@ -127,7 +127,7 @@ namespace DataCollection_Eval
             }
             finally
             {
-                clients.Clear();
+                _clients.Clear();
             }
             Logger.WriteDebugLog("Service has stopped.");
         }
