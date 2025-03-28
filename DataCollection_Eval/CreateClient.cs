@@ -221,23 +221,39 @@ namespace DataCollection_Eval
         // Helper method to read a value using Profinet PLC and create a DimensionDetails instance.
         private DimensionDetails CreateDimensionDetail(ref Plc plc, string gaugeId, int dimensionCount, string dbNumber, string plcAddress)
         {
-            double readValue = ((uint)plc?.Read($"DB{dbNumber}.DBD{plcAddress}")).ConvertToDouble();
-            return new DimensionDetails
+            try
             {
-                DimensionID = $"{_machineId}_{gaugeId}_D{dimensionCount}",
-                MeasuredValue = readValue
-            };
+                double readValue = ((uint)plc?.Read($"DB{dbNumber}.DBD{plcAddress}")).ConvertToDouble();
+                return new DimensionDetails
+                {
+                    DimensionID = $"{_machineId}_{gaugeId}_D{dimensionCount}",
+                    MeasuredValue = readValue
+                };
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteErrorLog("Exception inside CreateDimensionDetail() : " + ex.ToString());
+                return null;
+            }
         }
 
         // Helper method to read a value using Focas and create a DimensionDetails instance.
         private DimensionDetails CreateFocasDimensionDetail(string gaugeId, int dimensionCount, ushort focasLibHandle, short macroLocation)
         {
-            double readValue = FocasLibrary.FocasData.ReadMacroDouble(focasLibHandle, macroLocation);
-            return new DimensionDetails
+            try
             {
-                DimensionID = $"{_machineId}_{gaugeId}_D{dimensionCount}",
-                MeasuredValue = readValue
-            };
+                double readValue = FocasLibrary.FocasData.ReadMacroDouble(focasLibHandle, macroLocation);
+                return new DimensionDetails
+                {
+                    DimensionID = $"{_machineId}_{gaugeId}_D{dimensionCount}",
+                    MeasuredValue = readValue
+                };
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteErrorLog("Exception inside CreateFocasDimensionDetail() : " + ex.ToString());
+                return null;
+            }
         }
     }
 }

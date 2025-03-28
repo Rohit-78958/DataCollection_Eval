@@ -35,36 +35,43 @@ namespace DataCollection_Eval
             Thread.CurrentThread.Name = "DataCollectionService";
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
 
-            if (!Directory.Exists(appPath + "\\Logs\\"))
+            try
             {
-                Directory.CreateDirectory(appPath + "\\Logs\\");
-            }
-            ServiceStop.stop_service = 0;
-
-            
-            DatabaseAccess.PopulateGaugeInformationFromJson(jsonFilePath);
-
-            List<MachineInfoDTO> machines = DatabaseAccess.GetTPMTrakMachine();
-            if (machines.Count == 0)
-            {
-                Logger.WriteDebugLog("No machine is enabled for TPM-Trak. modify the machine setting and restart the service.");
-                return;
-            }
-
-            foreach (MachineInfoDTO machine in machines)
-            {
-                CreateClient client = new CreateClient(machine);
-                clients.Add(client);
-
-                ThreadStart job = new ThreadStart(client.GetClient);
-                Thread thread = new Thread(job)
+                if (!Directory.Exists(appPath + "\\Logs\\"))
                 {
-                    Name = Utility.SafeFileName(machine.MachineId),
-                    CurrentCulture = new System.Globalization.CultureInfo("en-US")
-                };
-                thread.Start();
-                threads.Add(thread);
-                Logger.WriteDebugLog($"Machine: {machine.MachineId} started for DataCollection with IP: {machine.IpAddress}, Port: {machine.PortNo}, Protocol: {machine.DataCollectionProtocol}");
+                    Directory.CreateDirectory(appPath + "\\Logs\\");
+                }
+                ServiceStop.stop_service = 0;
+
+
+                DatabaseAccess.PopulateGaugeInformationFromJson(jsonFilePath);
+
+                List<MachineInfoDTO> machines = DatabaseAccess.GetTPMTrakMachine();
+                if (machines.Count == 0)
+                {
+                    Logger.WriteDebugLog("No machine is enabled for TPM-Trak. modify the machine setting and restart the service.");
+                    return;
+                }
+
+                foreach (MachineInfoDTO machine in machines)
+                {
+                    CreateClient client = new CreateClient(machine);
+                    clients.Add(client);
+
+                    ThreadStart job = new ThreadStart(client.GetClient);
+                    Thread thread = new Thread(job)
+                    {
+                        Name = Utility.SafeFileName(machine.MachineId),
+                        CurrentCulture = new System.Globalization.CultureInfo("en-US")
+                    };
+                    thread.Start();
+                    threads.Add(thread);
+                    Logger.WriteDebugLog($"Machine: {machine.MachineId} started for DataCollection with IP: {machine.IpAddress}, Port: {machine.PortNo}, Protocol: {machine.DataCollectionProtocol}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.WriteErrorLog(ex.Message);
             }
         }
 
