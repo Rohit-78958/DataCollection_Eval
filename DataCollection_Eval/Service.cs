@@ -16,8 +16,8 @@ namespace DataCollection_Eval
 {
     public partial class Service: ServiceBase
     {
-        readonly List<Thread> threads = new List<Thread>();
-        private readonly List<CreateClient> clients = new List<CreateClient>();
+        private static readonly List<Thread> threads = new List<Thread>();
+        private static readonly List<CreateClient> clients = new List<CreateClient>();
         private static readonly string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         private static readonly string jsonFilePath = Path.Combine(appPath + "\\GaugeInfo.json");
         public Service()

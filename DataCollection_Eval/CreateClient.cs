@@ -37,7 +37,7 @@ namespace DataCollection_Eval
             if (Utility.CheckPingStatus(_ipAddress))
             {
                 Plc plc = null;
-                int dimensionCount = int.MaxValue;
+                int dimensionCount;
                 ushort focasLibHandle = ushort.MinValue;
 
                 while (true)
