@@ -93,8 +93,8 @@ namespace DataCollection_Eval
 
                 while (reader.Read())
                 {
-                    string ip = reader["IP"].ToString().Trim();
-                    string currentMachineId = reader["MachineId"].ToString().Trim();
+                    string ip = reader["IP"]?.ToString().Trim();
+                    string currentMachineId = reader["MachineId"]?.ToString().Trim();
 
                     if (!string.IsNullOrEmpty(ip))
                     {
@@ -105,8 +105,8 @@ namespace DataCollection_Eval
                             {
                                 MachineId = currentMachineId,
                                 IpAddress = ip,
-                                PortNo = Int32.TryParse(reader["IPPortNo"].ToString().Trim(), out int port) ? port : 0,
-                                DataCollectionProtocol = Utility.GetProtocol(reader["DAPEnabled"].ToString())??"NA",
+                                PortNo = Int32.TryParse(reader["IPPortNo"]?.ToString().Trim(), out int port) ? port : 0,
+                                DataCollectionProtocol = Utility.GetProtocol(reader["DAPEnabled"]?.ToString())??"NA",
                                 Gauges = new List<GaugeInformation>() // Initialize the list
                             };
                             machines.Add(currentMachine);
@@ -132,7 +132,7 @@ namespace DataCollection_Eval
                         {
                             var gauge = new GaugeInformation
                             {
-                                GaugeID = reader["GaugeID"].ToString().Trim(),
+                                GaugeID = reader["GaugeID"]?.ToString().Trim(),
                                 MachineID = currentMachine.MachineId,
                                 DataSource = dataSource,
                                 DimensionsCount = Convert.ToInt32(reader["GaugeDimensionsCount"]),

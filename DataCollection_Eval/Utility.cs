@@ -68,7 +68,7 @@ namespace DataCollection_Eval
             {
                 str = str.Replace(c, '_');
             }
-            return str.ToString();
+            return str?.ToString();
         }
     }
 }

@@ -95,7 +95,7 @@ namespace DataCollection_Eval
                     str.AppendLine("Peak physical memory usage of the process: " + p.PeakWorkingSet64);
                     str.AppendLine("Peak paged memory usage of the process: " + p.PeakPagedMemorySize64);
                     str.AppendLine("Peak virtual memory usage of the process: " + p.PeakVirtualMemorySize64);
-                    Logger.WriteErrorLog(str.ToString());
+                    Logger.WriteErrorLog(str?.ToString());
                 }
                 Thread.CurrentThread.Abort();
             }
