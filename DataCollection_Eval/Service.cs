@@ -19,6 +19,7 @@ namespace DataCollection_Eval
         readonly List<Thread> threads = new List<Thread>();
         private readonly List<CreateClient> clients = new List<CreateClient>();
         private static readonly string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        private static readonly string jsonFilePath = Path.Combine(appPath + "\\GaugeInfo.json");
         public Service()
         {
             InitializeComponent();
@@ -40,19 +41,15 @@ namespace DataCollection_Eval
             }
             ServiceStop.stop_service = 0;
 
-            #region Populating GauageInformationDB from jsonFile
-            string jsonFilePath = "D:\\Services\\DataCollection_Eval\\DataCollection_Eval\\GaugeInfo.json";
+            
             DatabaseAccess.PopulateGaugeInformationFromJson(jsonFilePath);
-            #endregion
 
-            #region Getting all machine Details
             List<MachineInfoDTO> machines = DatabaseAccess.GetTPMTrakMachine();
             if (machines.Count == 0)
             {
                 Logger.WriteDebugLog("No machine is enabled for TPM-Trak. modify the machine setting and restart the service.");
                 return;
             }
-            #endregion
 
             foreach (MachineInfoDTO machine in machines)
             {
