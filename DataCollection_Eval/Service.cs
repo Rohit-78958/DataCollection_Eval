@@ -56,7 +56,6 @@ namespace DataCollection_Eval
 
             foreach (MachineInfoDTO machine in machines)
             {
-                //MachineInfoDTO machine = machines[0]; //g: test
                 CreateClient client = new CreateClient(machine);
                 clients.Add(client);
 
