@@ -203,7 +203,8 @@ namespace DataCollection_Eval
                         {
                             Logger.WriteErrorLog("Exception inside main while loop Exception ex : " + ex.ToString());
                             Thread.Sleep(10000);
-                            FocasLibrary.FocasLib.cnc_freelibhndl(focasLibHandle);
+                            if(focasLibHandle != ushort.MinValue)
+                                FocasLibrary.FocasLib.cnc_freelibhndl(focasLibHandle);
                         }
                     }
                     #endregion
