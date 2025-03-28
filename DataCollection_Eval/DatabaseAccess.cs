@@ -25,37 +25,30 @@ namespace DataCollection_Eval
         {
             try
             {
-                // Read the JSON file
                 string jsonData = File.ReadAllText(jsonFilePath);
 
-                // Deserialize JSON into a list
                 List<GaugeInformation> gaugeList = JsonSerializer.Deserialize<List<GaugeInformation>>(jsonData);
 
-                // Create a DataTable
                 DataTable gaugeTable = new DataTable();
                 gaugeTable.Columns.Add("GaugeID", typeof(string));
                 gaugeTable.Columns.Add("MachineID", typeof(string));
                 gaugeTable.Columns.Add("DimensionsCount", typeof(int));
 
-                // Populate the DataTable
                 foreach (var gauge in gaugeList)
                 {
                     gaugeTable.Rows.Add(gauge.GaugeID, gauge.MachineID, gauge.DimensionsCount);
                 }
 
-                // Insert data using SqlBulkCopy
                 using (SqlConnection connection = ConnectionManager.GetConnection())
                 {
                     using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
                     {
                         bulkCopy.DestinationTableName = "GaugeInformation";
 
-                        // Map columns
                         bulkCopy.ColumnMappings.Add("GaugeID", "GaugeID");
                         bulkCopy.ColumnMappings.Add("MachineID", "MachineID");
                         bulkCopy.ColumnMappings.Add("DimensionsCount", "DimensionsCount");
 
-                        // Write to the database
                         bulkCopy.WriteToServer(gaugeTable);
                     }
                 }
