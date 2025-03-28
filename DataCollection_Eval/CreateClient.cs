@@ -32,7 +32,6 @@ namespace DataCollection_Eval
 
         public void GetClient()
         {
-            TcpClient tcpClient = null;
             _nextCleanUp = DateTime.Now.Date.AddDays(1);
 
             if (Utility.CheckPingStatus(_ipAddress))

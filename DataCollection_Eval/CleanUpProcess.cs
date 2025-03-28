@@ -47,11 +47,11 @@ namespace DataCollection_Eval
                 {
                     f.MoveTo(newfile);
                     Thread.Sleep(1000);
-                    //Logger.WriteDebugLog( string.Format("File {0} has been renamed to {1}.", location, newfile));
+                    Logger.WriteDebugLog( string.Format("File {0} has been renamed to {1}.", location, newfile));
                 }
                 catch(Exception ex)
                 {
-                    //Logger.WriteErrorLog(" RenameLogFiles(): " + ex.Message);
+                    Logger.WriteErrorLog(" RenameLogFiles(): " + ex.Message);
                 }               
             }
         }
